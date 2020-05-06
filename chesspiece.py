@@ -1,5 +1,5 @@
 class Vec2:
-    def __init__(self, x, y):
+    def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
     
@@ -20,6 +20,9 @@ class Vec2:
 
     def __neg__(self):
         return Vec2(-self.x, -self.y)
+    
+    def __repr__(self):
+        return f"Vec2({self.x}, {self.y})"
 
 class Chesspiece:
     def __init__(self, x, y, color, continuous = 0):
@@ -28,6 +31,8 @@ class Chesspiece:
         self.continuous = continuous
         self.color = color
         self.sprite = None
+        self.moved = 0
+        self.alive = 1
 
     def get_moves(self):
         pass
@@ -36,7 +41,6 @@ class Pawn(Chesspiece):
     def __init__(self, x, y, color):
         super().__init__(x,y,color)
         self.value = 10*self.color
-        self.moved_once = 0
     
     def get_moves(self):
         temp = [Vec2(0,self.color)]

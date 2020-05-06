@@ -1,14 +1,13 @@
 import random
 from constants import *
 from chesspiece import *
-from copy import deepcopy
 
 class Game:
-    def __init__(self):#0-normal 1-random
+    def __init__(self):
         self.board = Chessboard()
         self.highlight_coords = []
         self.highlights = []
-        self.turn = 1 #0-white 1-black
+        self.turn = WHITE
         self.num_vertexes = 0
         self.active_piece = None
         self.over = False
@@ -26,33 +25,27 @@ class Game:
             ]
     
     def highlight_moves(self, x, y):
+        self.board.cleanup(self.turn)
         self.active_piece = self.board.data[x][y]
         if self.active_piece and self.turn == self.active_piece.color:
             self.generate_highlights(self.board.generate_moves(self.active_piece))
             self.num_vertexes = len(self.highlights)*4
-
+ 
     def stop_highlighting(self):
         self.active_piece = None
         self.highlight_coords = []
         self.highlights = []
         self.num_vertexes = 0
-    
-    def checkmate(self):
-        moves = []
-        allies = self.board.white_pieces if self.board.check.color == WHITE else self.board.black_pieces
-        for ally in allies:
-            moves += self.board.generate_moves(ally)
-        return len(moves) == 0
 
 
 class Chessboard:
     def __init__(self):
-        self.white_pieces = [Pawn(i,1,WHITE) for i in range(8)] + [Rook(0,0,WHITE),Knight(1,0,WHITE),Bishop(2,0,WHITE),King(3,0,WHITE),
-                                                                Queen(4,0,WHITE),Bishop(5,0,WHITE),Knight(6,0,WHITE),Rook(7,0,WHITE)]
-        self.black_pieces = [Pawn(i,6,BLACK) for i in range(8)] + [Rook(0,7,BLACK),Knight(1,7,BLACK),Bishop(2,7,BLACK),King(3,7,BLACK),
-                                                                Queen(4,7,BLACK),Bishop(5,7,BLACK),Knight(6,7,BLACK),Rook(7,7,BLACK)]
-        self.WHITE_KING = self.white_pieces[11]
-        self.BLACK_KING = self.black_pieces[11]
+        self.white_pieces = [Pawn(i,1,WHITE) for i in range(8)] + [Rook(0,0,WHITE),Knight(1,0,WHITE),Bishop(2,0,WHITE),Queen(3,0,WHITE),
+                                                                King(4,0,WHITE),Bishop(5,0,WHITE),Knight(6,0,WHITE),Rook(7,0,WHITE)]
+        self.black_pieces = [Pawn(i,6,BLACK) for i in range(8)] + [Rook(0,7,BLACK),Knight(1,7,BLACK),Bishop(2,7,BLACK),Queen(3,7,BLACK),
+                                                                King(4,7,BLACK),Bishop(5,7,BLACK),Knight(6,7,BLACK),Rook(7,7,BLACK)]
+        self.WHITE_KING = self.white_pieces[12]
+        self.BLACK_KING = self.black_pieces[12]
         self.data =  [
                 [self.white_pieces[8],  self.white_pieces[0], 0,0,0,0, self.black_pieces[0], self.black_pieces[8]],
                 [self.white_pieces[9],  self.white_pieces[1], 0,0,0,0, self.black_pieces[1], self.black_pieces[9]],
@@ -64,7 +57,37 @@ class Chessboard:
                 [self.white_pieces[15], self.white_pieces[7], 0,0,0,0, self.black_pieces[7], self.black_pieces[15]]
             ]
         self.enpassant = None
+        self.castle = Vec2(Vec2(), Vec2())
         self.check = None
+
+    def coords_to_chess(self, coords):
+        return chr(ord(str(coords.x))+DECODE_OFFSET)+chr(ord(str(coords.y))+1)
+    
+    def move(self, pos1, pos2):
+        tmp = self.data[pos2.x][pos2.y]
+        self.data[pos2.x][pos2.y] = self.data[pos1.x][pos1.y]
+        self.data[pos1.x][pos1.y] = 0
+        return tmp
+    
+    def restore(self, pos1, pos2, take):
+        self.move(pos1, pos2)
+        self.data[pos1.x][pos1.y] = take
+
+    def checkmate(self):
+        moves = []
+        allies = self.white_pieces if self.check.color == WHITE else self.black_pieces
+        for ally in allies:
+            moves += self.generate_moves(ally)
+        return len(moves) == 0
+    
+    def cleanup(self, turn):
+        self.castle = Vec2(Vec2(), Vec2())
+        if self.enpassant and self.enpassant.x.color == turn:
+            self.enpassant = None
+        ally_pawns = self.white_pieces[0:8] if turn == 1 else self.black_pieces[0:8]
+        for piece in ally_pawns:
+            if piece.moved != 0:
+                piece.moved = 2
     
     def is_valid(self, pos):
         return self.is_on_board(pos) and not self.data[pos.x][pos.y]
@@ -78,7 +101,6 @@ class Chessboard:
     def validate_moves(self, moves, piece, recursive = 0):
         valid_moves = []
         temp = []
-        self.enpassant = None
 
         #basic moves
         for offset in moves:
@@ -126,24 +148,49 @@ class Chessboard:
                 tempy = piece.pos.y
                 if tempx <= 7:
                     enpassant = self.data[tempx][tempy]
-                    if type(enpassant) == Pawn and enpassant.moved_once:
+                    if type(enpassant) == Pawn and enpassant.moved == 1:
                         valid_moves.append(piece.pos + Vec2(1,piece.color))
                         self.enpassant = Vec2(enpassant, Vec2(tempx, tempy))
                 elif tempx-2 >= 0:
                     enpassant = self.data[tempx-2][tempy]
-                    if type(enpassant) == Pawn and enpassant.moved_once:
+                    if type(enpassant) == Pawn and enpassant.moved == 1:
                         valid_moves.append(piece.pos + Vec2(-1,piece.color))
-                        self.enpassant = Vec2(enpassant, Vec2(tempx, tempy))
+                        self.enpassant = Vec2(enpassant, Vec2(tempx-2, tempy))
         
-        if self.check and not recursive:
-            valid_moves = self.remove_fatal_moves(valid_moves, piece, self.check)
+        elif type(piece) == King and not recursive:
+            #castling
+            queen_side = self.white_pieces[8] if piece.color == WHITE else self.black_pieces[15]
+            king_side  = self.white_pieces[15] if piece.color == WHITE else self.black_pieces[8]
+            if piece.moved == 0:
+                castle = Vec2()
+                if queen_side.moved == 0:
+                    castle.x = queen_side
+                if king_side.moved == 0:
+                    castle.y = king_side
+                #queen_side
+                if castle.x and self.empty_inbetween(castle.x, piece):
+                    self.castle.x = Vec2(piece.pos.x-2*piece.color, piece.pos.y)
+                    valid_moves.append(self.castle.x)
+                #king_side
+                if castle.y and self.empty_inbetween(castle.y, piece):
+                    self.castle.y = Vec2(piece.pos.x+2*piece.color, piece.pos.y)
+                    valid_moves.append(self.castle.y)
 
         if not recursive:
             ally_king = self.BLACK_KING if piece.color == BLACK else self.WHITE_KING
             return self.remove_fatal_moves(valid_moves, piece, ally_king)
         else:
             return valid_moves
-            
+
+    def empty_inbetween(self, piece1, piece2):
+        y = piece1.pos.y
+        x1 = piece1.pos.x
+        x2 = piece2.pos.x
+        for x in range(min(x1,x2)+1, max(x1,x2)):
+            if self.data[x][y] or self.is_endangered(Vec2(x,y), -piece1.color):
+                return False                
+        return True
+
     def remove_fatal_moves(self, moves, moving_piece, endangered_piece):
         #remove moves from <moves> that would be fatal for <piece>
         temp = []
@@ -170,6 +217,15 @@ class Chessboard:
     def generate_moves(self, piece, recursive = 0):
         offsets = piece.get_moves()
         return self.validate_moves(offsets, piece, recursive)
+    
+    def generate_all_moves(self, color):
+        pieces = self.white_pieces if color == WHITE else self.black_pieces
+        moves = []
+        for piece in pieces:
+            endpoints = self.generate_moves(piece)
+            for endpoint in endpoints:
+                moves.append(Vec2(piece.pos, endpoint))
+        return moves
 
     def is_endangered(self, pos, enemy_color):
         enemy_pieces = self.black_pieces if enemy_color == BLACK else self.white_pieces
@@ -181,3 +237,8 @@ class Chessboard:
     def can_endanger(self, pos, piece):
         moves = self.generate_moves(piece, 1)
         return pos in moves
+    
+
+if __name__ == '__main__':
+    a = Chessboard()
+    print(a.generate_moves(a.white_pieces[0]))
