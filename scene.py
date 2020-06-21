@@ -8,7 +8,6 @@ class Menu:
         self.batch = pyglet.graphics.Batch()
         self.buttons = []
         self.animation = pyglet.resource.animation('ondro.gif')
-        self.scale = 0.5
         self.title = pyglet.sprite.Sprite(
             self.animation,
             x = (WIDTH-self.animation.get_max_width())/2,
@@ -22,11 +21,11 @@ class Menu:
             self.buttons.append(
                 pyglet.sprite.Sprite(
                     img,
-                    x=(i+1)*(WIDTH-3*img.width*self.scale)/4 + i*img.width*self.scale,
+                    x=(i+1)*(WIDTH-3*img.width)/4 + i*img.width,
                     y=HEIGHT/5,
                     batch=self.batch,
                 )
-            )##scaleni v skicari a kasli nato
+            )
 
     def draw(self):
         self.batch.draw()
@@ -37,15 +36,15 @@ class Menu:
             print(f"{sprite.x} {sprite.y}")
             distx = x - sprite.x
             disty = y-sprite.y
-            if distx > 0 and distx < self.scale*sprite.width and disty > 0 and disty < self.scale*sprite.height:
+            if distx > 0 and distx < sprite.width and disty > 0 and disty < sprite.height:
                 if i == 0:
                     return Game_Scene(HUMAN, HUMAN)
                 elif i == 1:
-                    bot = ChessPlayer(None, BLACK, DEPTH)
+                    bot = ChessPlayer(None, BLACK, DEPTH, MAXDEPTH)
                     return Game_Scene(HUMAN, bot)
                 elif i == 2:
-                    black = ChessPlayer(None, BLACK, DEPTH)
-                    white = ChessPlayer(None, WHITE, DEPTH)
+                    black = ChessPlayer(None, BLACK, DEPTH, MAXDEPTH)
+                    white = ChessPlayer(None, WHITE, DEPTH, MAXDEPTH)
                     return Game_Scene(white, black)
         return self
 
@@ -63,7 +62,7 @@ class Game_Scene:
         self.set_intial_values()
         self.graveyard = {WHITE:{Pawn:0, Knight:0, Bishop:0, Rook:0, Queen:0},
                           BLACK:{Pawn:0, Knight:0, Bishop:0, Rook:0, Queen:0}}
-        self.game.manage_robots(69)
+        self.game.clock.schedule_once(self.game.manage_robots, 0.5)
     
     def set_intial_values(self):
         self.calculate_grid_squares()
@@ -97,12 +96,12 @@ class Game_Scene:
         self.game_over = pyglet.text.Label(
                             text="",
                             bold=1,
-                            font_size=WIDTH//10,
-                            x=WIDTH*0.075,
-                            y=0.45*HEIGHT,
+                            font_size=GRID_SIZE,
+                            x=WIDTH/2+OFFSET,
+                            y=HEIGHT/2,
                             anchor_x="left",
                             anchor_y="bottom",
-                            color=(34, 139, 34, 255),
+                            color=(255, 205, 0, 255),
                             batch = self.batch)
         self.turn_text = pyglet.text.Label(
                             text=T_TURN[WHITE],
@@ -158,6 +157,9 @@ class Game_Scene:
     
     def move_dead_pieces(self, piece):
         if piece:
+            if isinstance(piece, King):
+                self.game.over = -piece.color
+                return
             x = 0
             for key, value in self.graveyard[piece.color].items():
                 x += value

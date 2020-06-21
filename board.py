@@ -29,6 +29,8 @@ class Chessboard:
         return chr(ord(str(coords.x))+DECODE_OFFSET)+chr(ord(str(coords.y))+1)
     
     def move(self, pos1, pos2, direction = 1):
+        if not self.is_on_board(pos1) or not self.is_on_board(pos2):
+            print(f"{pos1} - {pos2}")
         take = self.data[pos2.x][pos2.y]
         if take:
             take.alive = 0
@@ -48,7 +50,7 @@ class Chessboard:
     def checkmate(self):
         moves = self.generate_all_moves(self.check.color)
         if len(moves) == 0:
-            return self.check.color
+            return -self.check.color
         return 0
     
     def cleanup(self, turn):
@@ -58,13 +60,13 @@ class Chessboard:
             self.check = None
 
     def is_valid(self, pos):
-        return self.is_on_board(pos) and not self.data[pos.x][pos.y]
+        return self.is_on_board(pos) and self.is_empty(pos)
     
     def is_on_board(self, pos):
         return pos.x <= 7 and pos.x >= 0 and pos.y >= 0 and pos.y <= 7
     
-    def is_enemy(self, piece, pos):
-        return self.data[pos.x][pos.y] and piece.color != self.data[pos.x][pos.y].color
+    def is_enemy(self, color, pos):
+        return self.is_on_board(pos) and not self.is_empty(pos) and color != self.data[pos.x][pos.y].color
 
     def is_empty(self, pos):
         return self.data[pos.x][pos.y] == 0
@@ -78,7 +80,7 @@ class Chessboard:
             if self.is_on_board(move):
                 if self.data[move.x][move.y] == 0:
                     valid_moves.append(move)
-                elif self.is_enemy(piece, move):
+                elif self.is_enemy(piece.color, move):
                     temp.append(move)
         #extended moves
         if piece.continuous:
@@ -90,7 +92,7 @@ class Chessboard:
                         temp.append(pos)
                     else:
                         break
-                if self.is_on_board(pos) and self.is_enemy(piece, pos):
+                if self.is_on_board(pos) and self.is_enemy(piece.color, pos):
                     temp.append(pos)
         valid_moves += temp
         #pawn shenanigans
@@ -105,10 +107,10 @@ class Chessboard:
                 valid_moves.append(piece.pos + Vec2(0, 2*piece.color))
             #taking pieces
             take = piece.pos + Vec2(1,piece.color)
-            if take.x <= 7 and take.y <= 7 and self.data[take.x][take.y] and self.data[take.x][take.y].color != piece.color:
+            if self.is_enemy(piece.color, take):
                 valid_moves.append(take)
             take += Vec2(-2, 0)
-            if take.x >= 0 and take.y <= 7 and self.data[take.x][take.y] and self.data[take.x][take.y].color != piece.color:
+            if self.is_enemy(piece.color, take):
                 valid_moves.append(take)
         elif isinstance(piece, King) and not recursive:
             #castling

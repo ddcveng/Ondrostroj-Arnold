@@ -12,6 +12,8 @@ INF = 5000
 BLACK = -1
 WHITE = 1
 DEPTH = 3
+MAXDEPTH = 4
+ENDGAME = 6
 
 T_TURN = {BLACK: "black", WHITE: "white"}
 C_TURN = {BLACK: (0, 0, 0, 255), WHITE: (255,255,255,255)}
