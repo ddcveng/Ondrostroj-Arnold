@@ -36,7 +36,7 @@ class ChessPlayer:
         l = len(moves)
         if l == 0:
             self.terminal = True
-            return 10000 # terminal game state - someone won
+            return -color*10000 # terminal game state - someone won
         decrement = 1
         if l < 10:
             decrement = 0
