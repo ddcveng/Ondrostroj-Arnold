@@ -31,7 +31,7 @@ class Menu:
         self.batch.draw()
 
     def on_click(self, x, y, button, modifiers):
-        print(f"GG{x} {y}")
+        #print(f"GG{x} {y}")
         for i, sprite in enumerate(self.buttons):
             print(f"{sprite.x} {sprite.y}")
             distx = x - sprite.x
