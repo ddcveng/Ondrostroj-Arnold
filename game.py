@@ -120,7 +120,6 @@ class Game:
                 self.manage(pos)
                 self.end_turn()
             else:
-                print("no move")
                 self.over = -player.color
 
     def end_turn(self):
