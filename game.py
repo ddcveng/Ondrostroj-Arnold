@@ -79,7 +79,6 @@ class Game:
             castle_rook = self.board.pieces[self.turn][int(11.5 + self.turn*3.5)]
             pos.x = pos.x-self.turn
         if castle_rook:
-            print("LUMPARNA")
             castle_rook.sprite.update(x=pos.x*GRID_SIZE+CENTER_CONST, y=pos.y*GRID_SIZE+CENTER_CONST)
             self.board.data[pos.x][pos.y] = castle_rook
             self.board.data[castle_rook.pos.x][castle_rook.pos.y] = 0
