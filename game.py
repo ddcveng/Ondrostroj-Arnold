@@ -112,7 +112,7 @@ class Game:
     
     def manage_robots(self, _):
         player = self.players[self.turn]
-        if player != HUMAN:
+        if player != HUMAN and not self.over:
             piece, pos = player.next_move()
             if piece and pos:
                 self.move_piece(pos, piece)
